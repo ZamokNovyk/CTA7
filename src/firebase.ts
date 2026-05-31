@@ -3,13 +3,13 @@ import { getFirestore } from "firebase/firestore";
 
 // Configuración de Firebase proporcionada por el usuario
 const firebaseConfig = {
-  apiKey: "AIzaSyB2Sz78GXyQ1tKsDahMMnuY5t2AhHuIyiQ",
-  authDomain: "facemash-f1e21.firebaseapp.com",
-  projectId: "facemash-f1e21",
-  storageBucket: "facemash-f1e21.firebasestorage.app",
-  messagingSenderId: "525931048946",
-  appId: "1:525931048946:web:033c6539c6b49ae8d5856b",
-  measurementId: "G-6WB16NGVB2"
+  apiKey: "AIzaSyD3jHNA7CgsCyxbu7Cvp-1yn_G25seYE90",
+  authDomain: "cta7-f1fdf.firebaseapp.com",
+  projectId: "cta7-f1fdf",
+  storageBucket: "cta7-f1fdf.firebasestorage.app",
+  messagingSenderId: "295873732651",
+  appId: "1:295873732651:web:69224140ffdf75cd710a6e",
+  measurementId: "G-G3VSNPSJDJ"
 };
 
 // Inicializar Firebase
