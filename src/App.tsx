@@ -50,6 +50,7 @@ export default function App() {
   // --- STATE ---
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'women' | 'men'>('women');
   const [currentMatchup, setCurrentMatchup] = useState<[Student, Student] | null>(null);
   const [lastMatchupIds, setLastMatchupIds] = useState<[string, string] | null>(null);
@@ -133,8 +134,20 @@ export default function App() {
                 });
               })
             );
+            const mappedInitial = initial.map((s) => ({
+              ...s,
+              id: getStudentDocumentId(s.name),
+            }));
+            if (isMounted.current) {
+              setStudents(mappedInitial);
+              setLoading(false);
+            }
           } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'CTA7.Estudiantes/generos');
+            console.error("Error seeding initial students to Firestore:", err);
+            if (isMounted.current) {
+              setConnectionError(err instanceof Error ? err.message : String(err));
+              setLoading(false);
+            }
           }
         } else {
           setStudents(combined);
@@ -162,7 +175,11 @@ export default function App() {
       hombresLoaded = true;
       checkAndSet();
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'CTA7.Estudiantes/generos/hombres');
+      console.error("Firestore onSnapshot Hombres Error:", error);
+      if (isMounted.current) {
+        setConnectionError(error.message || String(error));
+        setLoading(false);
+      }
     });
 
     const unsubscribeMujeres = onSnapshot(mujeresRef, (snapshot) => {
@@ -184,7 +201,11 @@ export default function App() {
       mujeresLoaded = true;
       checkAndSet();
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'CTA7.Estudiantes/generos/mujeres');
+      console.error("Firestore onSnapshot Mujeres Error:", error);
+      if (isMounted.current) {
+        setConnectionError(error.message || String(error));
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -366,21 +387,55 @@ export default function App() {
   // --- RESET ALL DATA (RESTORE DEFAULTS) ---
   const handleResetData = async () => {
     if (window.confirm('¿Estás seguro de que deseas reiniciar todos los puntajes ELO de la base de datos en la nube y restaurar al estado inicial?')) {
+      setLoading(true);
       try {
         const hombresSnap = await getDocs(collection(db, 'CTA7.Estudiantes', 'generos', 'hombres'));
         const mujeresSnap = await getDocs(collection(db, 'CTA7.Estudiantes', 'generos', 'mujeres'));
         
+        // delete all current docs
         await Promise.all([
           ...hombresSnap.docs.map(docSnap => deleteDoc(doc(db, 'CTA7.Estudiantes', 'generos', 'hombres', docSnap.id))),
           ...mujeresSnap.docs.map(docSnap => deleteDoc(doc(db, 'CTA7.Estudiantes', 'generos', 'mujeres', docSnap.id))),
         ]);
+
+        // immediately seed the database
+        const initial = getInitialStudents();
+        await Promise.all(
+          initial.map(async (s) => {
+            const docId = getStudentDocumentId(s.name);
+            const docRef = doc(db, 'CTA7.Estudiantes', 'generos', s.genre === 'men' ? 'hombres' : 'mujeres', docId);
+            await setDoc(docRef, {
+              nombre: s.name,
+              elo: s.elo,
+              perfilPhotoUrl: `https://api.dicebear.com/7.x/${s.genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(s.name)}`,
+              votos_ganados: 0,
+              votos_perdidos: 0,
+              genre: s.genre,
+              actualizadoEn: formatSpTimestamp(new Date())
+            });
+          })
+        );
+
+        const mappedInitial = initial.map((s) => ({
+          ...s,
+          id: getStudentDocumentId(s.name),
+        }));
 
         setTotalVotes(0);
         setLastMatchupIds(null);
         setPlayedMatchups([]);
         localStorage.setItem('mashMatch_votes_count', '0');
         localStorage.removeItem('mashMatch_played_matchups');
+        
+        if (isMounted.current) {
+          setStudents(mappedInitial);
+          setLoading(false);
+        }
+        alert('Base de datos y listado de estudiantes restaurado con éxito.');
       } catch (err) {
+        if (isMounted.current) {
+          setLoading(false);
+        }
         handleFirestoreError(err, OperationType.DELETE, 'CTA7.Estudiantes/generos');
       }
     }
@@ -467,6 +522,60 @@ export default function App() {
     return studentA && studentB && studentA.genre === activeTab && studentB.genre === activeTab;
   }).length;
   const remainingMatchups = Math.max(0, totalPossibleMatchups - playedInThisCategory);
+
+  if (connectionError) {
+    return (
+      <div className="min-h-screen bg-[#050505] text-[#e0e0e0] flex flex-col items-center justify-center font-sans p-6">
+        <div className="w-full max-w-md bg-black/60 border border-white/10 rounded-2xl p-6 sm:p-8 backdrop-blur-md shadow-[0_0_50px_rgba(255,0,122,0.15)] flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center mb-6">
+            <X className="w-8 h-8 text-red-500 animate-pulse" />
+          </div>
+          <h2 className="text-xl font-bold font-sans tracking-tight text-white mb-2 uppercase">Error de Conexión a Firebase</h2>
+          <p className="text-xs text-white/60 mb-6 font-mono leading-relaxed bg-white/5 border border-white/5 p-3 rounded-lg w-full text-left overflow-x-auto whitespace-pre-wrap max-h-36">
+            {connectionError}
+          </p>
+          <div className="text-left text-xs space-y-3 text-white/70 w-full mb-6">
+            <p className="font-bold text-[#ff007a] uppercase tracking-wider font-mono text-[10px]">¿Cómo solucionar este error?</p>
+            <div className="flex gap-2">
+              <span className="text-[#bc13fe] font-black">1.</span>
+              <p>Verifica que las <strong>Reglas de Seguridad (Security Rules)</strong> de tu nueva base de datos Firestore de Firebase permitan la lectura y escritura pública para la ruta <code>CTA7.Estudiantes</code>.</p>
+            </div>
+            <pre className="text-[10px] bg-black/80 font-mono p-2.5 rounded-lg border border-white/5 text-[#ff007a] overflow-x-auto select-all">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /CTA7.Estudiantes/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}`}
+            </pre>
+            <div className="flex gap-2">
+              <span className="text-[#bc13fe] font-black">2.</span>
+              <p>Asegúrate de que <strong>Cloud Firestore</strong> esté activado en tu pantalla de la consola de Firebase del proyecto ({db.app.options.projectId}).</p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#ff007a] to-[#bc13fe] text-white font-black text-sm tracking-widest hover:scale-[1.02] active:scale-95 transition-all text-center cursor-pointer shadow-[0_4px_20px_rgba(255,0,122,0.3)] mb-4 uppercase"
+          >
+            Reintentar Conexión
+          </button>
+          
+          <button
+            onClick={() => {
+              // Permitir usar datos en local si Firebase falla para que la página sea interactiva
+              setStudents(getInitialStudents().map(s => ({ ...s, id: getStudentDocumentId(s.name) })));
+              setConnectionError(null);
+            }}
+            className="text-xs text-[#ff007a] hover:text-white transition-colors cursor-pointer font-bold underline uppercase tracking-wider mt-2 border border-[#ff007a]/30 rounded-lg py-2 px-4 bg-[#ff007a]/5"
+          >
+            Continuar con Datos Locales
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
