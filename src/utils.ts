@@ -29,6 +29,19 @@ export function calculateElo(
   };
 }
 
+// Helper to get beautiful, gender-separated, colorful adventurer avatars from Dicebear
+export function getAvatarUrl(name: string, genre: 'women' | 'men'): string {
+  if (genre === 'women') {
+    // Elegant/Long/Curly/Bob/Bun hairstyles for women
+    const femaleHair = 'long01,long02,long03,long04,long05';
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&hair=${femaleHair}`;
+  } else {
+    // Short hairstyles for men, or other masculine styles
+    const maleHair = 'short01,short02,short03,short04,short05,short06,short07,short08,short09,short10';
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&hair=${maleHair}`;
+  }
+}
+
 // Default list of students
 export const INITIAL_WOMEN: string[] = [
   'Guiannella Bravo Flores',

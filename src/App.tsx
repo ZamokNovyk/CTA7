@@ -28,7 +28,8 @@ import {
   getInitialStudents,
   selectMatchup,
   calculateElo,
-  playArcadeVoteSound
+  playArcadeVoteSound,
+  getAvatarUrl
 } from './utils';
 import {
   collection,
@@ -126,7 +127,7 @@ export default function App() {
                 await setDoc(docRef, {
                   nombre: s.name,
                   elo: s.elo,
-                  perfilPhotoUrl: `https://api.dicebear.com/7.x/${s.genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(s.name)}`,
+                  perfilPhotoUrl: getAvatarUrl(s.name, s.genre),
                   votos_ganados: 0,
                   votos_perdidos: 0,
                   genre: s.genre,
@@ -168,7 +169,7 @@ export default function App() {
           matches: (data.votos_ganados ?? 0) + (data.votos_perdidos ?? 0),
           wins: data.votos_ganados ?? 0,
           createdAt: 0,
-          perfilPhotoUrl: data.perfilPhotoUrl,
+          perfilPhotoUrl: getAvatarUrl(data.nombre || docSnap.id, 'men'),
           actualizadoEn: data.actualizadoEn,
         });
       });
@@ -194,7 +195,7 @@ export default function App() {
           matches: (data.votos_ganados ?? 0) + (data.votos_perdidos ?? 0),
           wins: data.votos_ganados ?? 0,
           createdAt: 0,
-          perfilPhotoUrl: data.perfilPhotoUrl,
+          perfilPhotoUrl: getAvatarUrl(data.nombre || docSnap.id, 'women'),
           actualizadoEn: data.actualizadoEn,
         });
       });
@@ -300,7 +301,7 @@ export default function App() {
         setDoc(winnerRef, {
           nombre: winner.name,
           elo: winnerNew,
-          perfilPhotoUrl: winner.perfilPhotoUrl || `https://api.dicebear.com/7.x/${winner.genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(winner.name)}`,
+          perfilPhotoUrl: getAvatarUrl(winner.name, winner.genre),
           votos_ganados: winner.wins + 1,
           votos_perdidos: (winner.matches - winner.wins),
           genre: winner.genre,
@@ -310,7 +311,7 @@ export default function App() {
         setDoc(loserRef, {
           nombre: loser.name,
           elo: loserNew,
-          perfilPhotoUrl: loser.perfilPhotoUrl || `https://api.dicebear.com/7.x/${loser.genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(loser.name)}`,
+          perfilPhotoUrl: getAvatarUrl(loser.name, loser.genre),
           votos_ganados: loser.wins,
           votos_perdidos: (loser.matches - loser.wins + 1),
           genre: loser.genre,
@@ -407,7 +408,7 @@ export default function App() {
             await setDoc(docRef, {
               nombre: s.name,
               elo: s.elo,
-              perfilPhotoUrl: `https://api.dicebear.com/7.x/${s.genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(s.name)}`,
+              perfilPhotoUrl: getAvatarUrl(s.name, s.genre),
               votos_ganados: 0,
               votos_perdidos: 0,
               genre: s.genre,
@@ -473,7 +474,7 @@ export default function App() {
       await setDoc(docRef, {
         nombre: trimmedName,
         elo: 1200,
-        perfilPhotoUrl: `https://api.dicebear.com/7.x/${newStudentGenre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(trimmedName)}`,
+        perfilPhotoUrl: getAvatarUrl(trimmedName, newStudentGenre),
         votos_ganados: 0,
         votos_perdidos: 0,
         genre: newStudentGenre,
@@ -751,7 +752,7 @@ service cloud.firestore {
                       <div className="absolute inset-0 bg-gradient-to-b from-[#ff007a]/15 to-[#bc13fe]/15 rounded-full blur-xl sm:blur-2xl group-hover:scale-110 duration-500 transition-transform" />
                       <div className="relative w-16 h-16 xs:w-28 xs:h-28 sm:w-44 sm:h-44 rounded-full border border-white/10 bg-[#121214] overflow-hidden flex items-center justify-center p-1 sm:p-2 group-hover:scale-105 duration-300 transition-transform shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]">
                         <img
-                          src={currentMatchup[0].perfilPhotoUrl || `https://api.dicebear.com/7.x/${currentMatchup[0].genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(currentMatchup[0].name)}`}
+                          src={currentMatchup[0].perfilPhotoUrl || getAvatarUrl(currentMatchup[0].name, currentMatchup[0].genre)}
                           alt={currentMatchup[0].name}
                           className="w-full h-full object-contain"
                           referrerPolicy="no-referrer"
@@ -848,7 +849,7 @@ service cloud.firestore {
                       <div className="absolute inset-0 bg-gradient-to-b from-[#bc13fe]/15 to-[#ff007a]/15 rounded-full blur-xl sm:blur-2xl group-hover:scale-110 duration-500 transition-transform" />
                       <div className="relative w-16 h-16 xs:w-28 xs:h-28 sm:w-44 sm:h-44 rounded-full border border-[#bc13fe]/30 bg-[#121214] overflow-hidden flex items-center justify-center p-1 sm:p-2 group-hover:scale-105 duration-300 transition-transform shadow-[inset_0_0_25px_rgba(188,19,254,0.15)]">
                         <img
-                          src={currentMatchup[1].perfilPhotoUrl || `https://api.dicebear.com/7.x/${currentMatchup[1].genre === 'women' ? 'adventurer' : 'lorelei'}/svg?seed=${encodeURIComponent(currentMatchup[1].name)}`}
+                          src={currentMatchup[1].perfilPhotoUrl || getAvatarUrl(currentMatchup[1].name, currentMatchup[1].genre)}
                           alt={currentMatchup[1].name}
                           className="w-full h-full object-contain"
                           referrerPolicy="no-referrer"
