@@ -1,0 +1,6 @@
+{
+  "name": "MashMatch",
+  "description": "Un clon de Facemash moderno y respetuoso para entornos educativos de adultos, con lógica de puntuación ELO, categorías por género, privacidad con podio de honor, efectos de audio y atajos de teclado.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

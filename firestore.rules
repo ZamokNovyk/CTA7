@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Por defecto, denegar acceso no especificado para seguridad
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Permitir lectura y escritura pública en la colección de estudiantes y sus subcolecciones para el juego interactivo
+    match /CTA7.Estudiantes/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

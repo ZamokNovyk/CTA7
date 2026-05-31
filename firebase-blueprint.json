@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "Estudiante": {
+      "title": "Estudiante",
+      "description": "Un estudiante participante con su puntuación ELO, estadísticas de votos y foto de perfil.",
+      "type": "object",
+      "properties": {
+        "nombre": {
+          "type": "string",
+          "description": "Nombre completo del estudiante"
+        },
+        "elo": {
+          "type": "number",
+          "description": "Puntuación ELO actual"
+        },
+        "perfilPhotoUrl": {
+          "type": "string",
+          "description": "URL de la foto de perfil del estudiante"
+        },
+        "votos_ganados": {
+          "type": "number",
+          "description": "Número de votos que ha ganado en enfrentamientos"
+        },
+        "votos_perdidos": {
+          "type": "number",
+          "description": "Número de votos que ha perdido en enfrentamientos"
+        },
+        "genre": {
+          "type": "string",
+          "enum": ["women", "men"],
+          "description": "Categoría / género del estudiante"
+        },
+        "actualizadoEn": {
+          "type": "string",
+          "description": "Representación de fecha y hora en español de la última actualización"
+        }
+      },
+      "required": ["nombre", "elo", "perfilPhotoUrl", "votos_ganados", "votos_perdidos", "genre", "actualizadoEn"]
+    }
+  },
+  "firestore": {
+    "CTA7.Estudiantes/generos/hombres/{estudianteId}": {
+      "schema": "Estudiante",
+      "description": "Subcolección de estudiantes hombres."
+    },
+    "CTA7.Estudiantes/generos/mujeres/{estudianteId}": {
+      "schema": "Estudiante",
+      "description": "Subcolección de estudiantes mujeres."
+    }
+  }
+}
