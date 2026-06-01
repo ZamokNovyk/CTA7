@@ -112,6 +112,11 @@ export default function App() {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminSuccess, setAdminSuccess] = useState<string | null>(null);
   const [registering, setRegistering] = useState<boolean>(false);
+
+  // States for Cinematic Reveal Show
+  const [isRevealModalOpen, setIsRevealModalOpen] = useState<boolean>(false);
+  const [revealStep, setRevealStep] = useState<number>(0); // 0: Intro, 1: 3rd Place, 2: 2nd Place, 3: 1st Place
+  const [autoAdvance, setAutoAdvance] = useState<boolean>(true);
   
   // Countdown Config & Time Tracking
   const [countdownConfig, setCountdownConfig] = useState<{ isActive: boolean; targetDate: string } | null>(null);
@@ -582,6 +587,74 @@ export default function App() {
     }
   };
 
+  // --- RESTART CONTEST (KEEP MEMBERS, RESET SCORES & COUNTDOWN) ---
+  const handleRestartContest = async () => {
+    if (window.confirm('¿Estás seguro de que deseas volver a iniciar el concurso? Esto restablecerá el ELO a 1200 y las Victorias/Votos a 0 para TODOS los estudiantes actualmente registrados (incluyendo todos los personalizados), y desactivará el temporizador actual de cuenta atrás para que todos puedan volver a votar de inmediato.')) {
+      setLoading(true);
+      try {
+        const hombresSnap = await getDocs(collection(db, 'CTA7.Estudiantes', 'generos', 'hombres'));
+        const mujeresSnap = await getDocs(collection(db, 'CTA7.Estudiantes', 'generos', 'mujeres'));
+        
+        // Reset ELO and wins/losses for all registered students
+        await Promise.all([
+          ...hombresSnap.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            await setDoc(docSnap.ref, {
+              ...data,
+              elo: 1200,
+              votos_ganados: 0,
+              votos_perdidos: 0,
+              actualizadoEn: formatSpTimestamp(new Date())
+            }, { merge: true });
+          }),
+          ...mujeresSnap.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            await setDoc(docSnap.ref, {
+              ...data,
+              elo: 1200,
+              votos_ganados: 0,
+              votos_perdidos: 0,
+              actualizadoEn: formatSpTimestamp(new Date())
+            }, { merge: true });
+          })
+        ]);
+
+        // Deactivate the timer in Firebase so that the voting turns fully active
+        await setDoc(doc(db, 'CTA7.Estudiantes', 'configuracion', 'config', 'countdown'), {
+          isActive: false,
+          targetDate: '',
+          updatedBy: user?.uid || 'admin'
+        }, { merge: true });
+
+        // Update local state and persistence
+        setTotalVotes(0);
+        setLastMatchupIds(null);
+        setPlayedMatchups([]);
+        localStorage.setItem('mashMatch_votes_count', '0');
+        localStorage.removeItem('mashMatch_played_matchups');
+
+        if (isMounted.current) {
+          setStudents((prev) =>
+            prev.map((s) => ({
+              ...s,
+              elo: 1200,
+              wins: 0,
+              losses: 0,
+            }))
+          );
+          setLoading(false);
+        }
+        alert('¡El concurso se ha vuelto a iniciar con éxito! Todos los puntajes se reiniciaron a 1200 y las votaciones vuelven a estar abiertas.');
+      } catch (err) {
+        if (isMounted.current) {
+          setLoading(false);
+        }
+        console.error("Error resetting ELO for starting contest anew:", err);
+        alert('Hubo un error al intentar volver a iniciar el concurso: ' + (err instanceof Error ? err.message : String(err)));
+      }
+    }
+  };
+
   // --- ADD STUDENT HANDLER ---
   const handleAddStudentSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -630,6 +703,133 @@ export default function App() {
     }
   };
 
+  // --- SOUND SYNTHESIZER FOR CINEMATIC REVEAL ANIMATIONS ---
+  const playRevealSound = useCallback((step: number, currentlyMuted: boolean) => {
+    if (currentlyMuted) return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const now = ctx.currentTime;
+
+      if (step === 0) {
+        // Welcome/Intro sound: Sci-fi sweep
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (step === 1) {
+        // 3rd place: double digital chime
+        [293.66, 392.00].forEach((freq, idx) => { // D4, G4
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.12);
+          osc.stop(now + idx * 0.12 + 0.35);
+        });
+      } else if (step === 2) {
+        // 2nd place: golden triple melody
+        [329.63, 440.00, 523.25].forEach((freq, idx) => { // E4, A4, C5
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+          gain.gain.setValueAtTime(0.14, now + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.45);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.1);
+          osc.stop(now + idx * 0.1 + 0.45);
+        });
+      } else if (step === 3) {
+        // 1st place: Grand victory royal fanfare
+        const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]; // C5 major arpeggio
+        freqs.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = idx === freqs.length - 1 ? 'sawtooth' : 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          const vol = idx === freqs.length - 1 ? 0.18 : 0.08;
+          gain.gain.setValueAtTime(vol, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.7);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.85);
+        });
+
+        // Synthetic drum explosion representing dynamic confetti
+        const bufferSize = ctx.sampleRate * 0.5;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1200;
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.06, now + 0.3);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start(now + 0.3);
+        noise.stop(now + 0.85);
+      }
+    } catch (e) {
+      console.warn('Audio synthesis failed:', e);
+    }
+  }, []);
+
+  const handleStartRevealShow = () => {
+    setRevealStep(1);
+    playRevealSound(1, isMuted);
+  };
+
+  const handleNextRevealStep = () => {
+    setRevealStep((prev) => {
+      const next = prev + 1;
+      if (next <= 3) {
+        playRevealSound(next, isMuted);
+      }
+      return next;
+    });
+  };
+
+  const handlePrevRevealStep = () => {
+    setRevealStep((prev) => {
+      const prevStep = Math.max(0, prev - 1);
+      playRevealSound(prevStep, isMuted);
+      return prevStep;
+    });
+  };
+
+  // Auto-advance cinematic reveal steps
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isRevealModalOpen && autoAdvance && revealStep > 0 && revealStep < 3) {
+      timer = setTimeout(() => {
+        handleNextRevealStep();
+      }, 4000);
+    }
+    return () => clearTimeout(timer);
+  }, [isRevealModalOpen, autoAdvance, revealStep, isMuted]);
+
   // --- LEADERBOARD LOGIC: STRICT TOP 3 ONLY ---
   const activeTabStudents = students.filter((s) => s.genre === activeTab);
   
@@ -641,6 +841,23 @@ export default function App() {
   });
 
   const top3 = sortedRanking.slice(0, 3);
+
+  // Compute absolute gender rankings for the cinematic show modal
+  const womenStudentsFiltered = students.filter((s) => s.genre === 'women');
+  const sortedWomen = [...womenStudentsFiltered].sort((a, b) => {
+    if (b.elo !== a.elo) return b.elo - a.elo;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return b.createdAt - a.createdAt;
+  });
+  const top3WomenList = sortedWomen.slice(0, 3);
+
+  const menStudentsFiltered = students.filter((s) => s.genre === 'men');
+  const sortedMen = [...menStudentsFiltered].sort((a, b) => {
+    if (b.elo !== a.elo) return b.elo - a.elo;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return b.createdAt - a.createdAt;
+  });
+  const top3MenList = sortedMen.slice(0, 3);
   
   // Split podium arrangement: [2nd, 1st, 3rd] for balanced visual layout
   const podiumStudents: { place: 1 | 2 | 3; student: Student | null }[] = [
@@ -1109,7 +1326,27 @@ service cloud.firestore {
             <div className="bg-white/[0.02] border border-white/10 rounded-[32px] p-6 flex flex-col gap-4 relative overflow-hidden">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#bc13fe]/10 rounded-full blur-3xl pointer-events-none" />
 
-              {sortedRanking.length === 0 ? (
+              {countdownConfig?.isActive && timeRemaining.total <= 0 ? (
+                <div className="text-center py-6 flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#bc13fe]/20 to-[#ff007a]/20 border border-[#ff007a]/40 flex items-center justify-center text-3xl mb-4 animate-bounce">
+                    🏆
+                  </div>
+                  <h3 className="text-xs font-black text-white/90 uppercase tracking-widest leading-snug">Votación Finalizada</h3>
+                  <p className="text-[10px] text-white/40 mt-1.5 leading-relaxed max-w-[200px]">
+                    El evento de MashMatch ha culminado. Las posiciones finales del podio están bloqueadas.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setIsRevealModalOpen(true);
+                      setRevealStep(0);
+                    }}
+                    className="mt-6 w-full py-3.5 px-4 bg-gradient-to-r from-[#ff007a] via-[#bc13fe] to-[#ff007a] hover:opacity-90 active:scale-95 transition-all duration-300 text-white text-[10px] font-black tracking-widest uppercase rounded-2xl shadow-[0_0_20px_rgba(255,0,122,0.3)] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Ver Resultados
+                  </button>
+                </div>
+              ) : sortedRanking.length === 0 ? (
                 <div className="text-center py-12 text-xs font-mono text-white/30 italic">
                   Registros nulos todavía
                 </div>
@@ -1649,7 +1886,28 @@ service cloud.firestore {
                       </div>
                     </div>
 
-                    {/* SECCIÓN 2: RESTABLECER BASE DE DATOS */}
+                    {/* SECCIÓN 2: VOLVER A INICIAR EL CONCURSO */}
+                    <div className="bg-gradient-to-r from-[#bc13fe]/10 via-[#ff007a]/10 to-[#bc13fe]/10 border border-[#ff007a]/30 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
+                      <div className="flex items-center gap-2 text-yellow-400">
+                        <Sparkles className="w-4.5 h-4.5 text-yellow-300 animate-pulse" />
+                        <h4 className="text-xs font-black uppercase tracking-widest text-white">Volver a Iniciar Concurso</h4>
+                      </div>
+                      <p className="text-[10px] text-white/70 leading-relaxed">
+                        ¿Quieres iniciar una nueva temporada? Esta acción restablecerá el ELO a 1200 y las Victorias/Votos a 0 de todos los estudiantes actuales (conservando los nuevos creados), y desactivará el temporizador para reactivar las votaciones.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsAdminModalOpen(false);
+                          await handleRestartContest();
+                        }}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-[#ff007a] via-[#bc13fe] to-[#ff007a] hover:opacity-90 active:scale-95 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer text-center shadow-[0_0_15px_rgba(255,0,122,0.3)]"
+                      >
+                        🚀 Volver a Iniciar Concurso
+                      </button>
+                    </div>
+
+                    {/* SECCIÓN 3: RESTABLECER BASE DE DATOS */}
                     <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
                       <div className="flex items-center gap-2 text-red-500">
                         <RotateCcw className="w-4 h-4" />
@@ -1698,6 +1956,355 @@ service cloud.firestore {
           </div>
         )}
       </AnimatePresence>
+
+      {/* --- CINEMATIC REVEAL SHOW MODAL --- */}
+      <AnimatePresence>
+        {isRevealModalOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-between p-3 sm:p-6 bg-[#030305]/95 text-white font-sans overflow-y-auto min-h-screen">
+            {/* Dynamic Ambient Blur Background elements */}
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#ff007a]/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+            <div className="absolute bottom-1/4 right-1/2 w-96 h-96 bg-[#bc13fe]/15 rounded-full blur-[120px] pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
+
+            {/* HEADER SECTION */}
+            <div className="relative flex items-center justify-between border-b border-white/5 pb-3 z-10 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ff007a] to-[#bc13fe] flex items-center justify-center shadow-[0_0_15px_rgba(255,0,122,0.5)]">
+                  <Sparkles className="w-5 h-5 text-yellow-300 animate-pulse" />
+                </div>
+                <div>
+                  <h1 className="text-sm sm:text-base font-black uppercase tracking-widest bg-gradient-to-r from-white via-white/80 to-white/95 bg-clip-text text-transparent font-display leading-tight">
+                    MashMatch Reveal Show
+                  </h1>
+                  <p className="text-[9px] font-mono text-white/40 tracking-wider uppercase">Veredicto Final</p>
+                </div>
+              </div>
+
+              {/* Sound & Close Controllers */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const newVal = !isMuted;
+                    setIsMuted(newVal);
+                    localStorage.setItem('mashMatch_muted', JSON.stringify(newVal));
+                  }}
+                  className="p-2 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition duration-200 cursor-pointer"
+                  title={isMuted ? 'Activar sonido' : 'Silenciar sonido'}
+                >
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => setIsRevealModalOpen(false)}
+                  className="p-2 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition duration-200 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* CORE EXPERIENCE STAGE */}
+            <div className="relative flex-1 flex flex-col items-center justify-center py-4 z-10 w-full max-w-5xl mx-auto">
+              {revealStep === 0 ? (
+                /* INTRO SCREEN */
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  className="text-center max-w-2xl px-4 py-8 bg-white/[0.02] border border-white/5 rounded-[40px] shadow-[0_0_50px_rgba(188,19,254,0.05)] relative overflow-hidden flex flex-col items-center justify-center min-h-[420px]"
+                >
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-[#bc13fe]/20 to-[#ff007a]/20 rounded-full blur-[80px] pointer-events-none" />
+                  <motion.div
+                    animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1, 1.05, 1] }}
+                    transition={{ repeat: Infinity, duration: 6 }}
+                    className="relative z-10 text-7xl select-none"
+                  >
+                    👑
+                  </motion.div>
+                  <h2 className="relative z-10 text-xl sm:text-3xl font-black uppercase tracking-tight text-white mt-6 font-display max-w-lg leading-tight">
+                    Revelación del Podio
+                  </h2>
+                  <p className="relative z-10 text-xs sm:text-sm text-white/50 mt-4 leading-relaxed max-w-md">
+                    La cuenta regresiva ha concluido de forma épica. Prepárate para descubrir los 3 mejores puestos de ambas categorías, calculado por el sistema de puntuaciones ELO en tiempo real.
+                  </p>
+                  <div className="relative z-10 flex flex-wrap gap-3 items-center justify-center mt-8">
+                    <button
+                      onClick={handleStartRevealShow}
+                      className="px-8 py-4 bg-gradient-to-r from-[#ff007a] via-[#bc13fe] to-[#ff007a] text-white text-xs font-black tracking-widest uppercase rounded-2xl cursor-pointer hover:scale-[1.05] active:scale-[0.98] transition-all duration-300 shadow-[0_0_30px_rgba(255,0,122,0.4)]"
+                    >
+                      Iniciar Revelación 🎬
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                /* ACTIVE REVEAL SHOW SCREEN */
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 items-stretch mt-2">
+                    
+                    {/* FEMALE COLUMN */}
+                    <div className="bg-white/[0.01] border border-white/5 rounded-[32px] p-4 sm:p-6 flex flex-col gap-4 relative overflow-hidden shadow-[inset_0_0_30px_rgba(255,0,122,0.02)]">
+                      <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#ff007a]/5 rounded-full blur-3xl pointer-events-none" />
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <span className="text-[10px] font-mono tracking-widest text-[#ff007a] uppercase italic font-bold">Categoría Femenina</span>
+                        <Venus className="w-4 h-4 text-[#ff007a]" />
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <RevealSlotCard
+                          place={1}
+                          student={top3WomenList[0]}
+                          isRevealed={revealStep >= 3}
+                          isGuiannella={top3WomenList[0] ? isGuiannella(top3WomenList[0].name) : false}
+                        />
+
+                        <RevealSlotCard
+                          place={2}
+                          student={top3WomenList[1]}
+                          isRevealed={revealStep >= 2}
+                          isGuiannella={top3WomenList[1] ? isGuiannella(top3WomenList[1].name) : false}
+                        />
+
+                        <RevealSlotCard
+                          place={3}
+                          student={top3WomenList[2]}
+                          isRevealed={revealStep >= 1}
+                          isGuiannella={top3WomenList[2] ? isGuiannella(top3WomenList[2].name) : false}
+                        />
+                      </div>
+                    </div>
+
+                    {/* MALE COLUMN */}
+                    <div className="bg-white/[0.01] border border-white/5 rounded-[32px] p-4 sm:p-6 flex flex-col gap-4 relative overflow-hidden shadow-[inset_0_0_30px_rgba(188,19,254,0.02)]">
+                      <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#bc13fe]/5 rounded-full blur-3xl pointer-events-none" />
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <span className="text-[10px] font-mono tracking-widest text-[#bc13fe] uppercase italic font-bold">Categoría Masculina</span>
+                        <Mars className="w-4 h-4 text-[#bc13fe]" />
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <RevealSlotCard
+                          place={1}
+                          student={top3MenList[0]}
+                          isRevealed={revealStep >= 3}
+                          isGuiannella={top3MenList[0] ? isGuiannella(top3MenList[0].name) : false}
+                        />
+
+                        <RevealSlotCard
+                          place={2}
+                          student={top3MenList[1]}
+                          isRevealed={revealStep >= 2}
+                          isGuiannella={top3MenList[1] ? isGuiannella(top3MenList[1].name) : false}
+                        />
+
+                        <RevealSlotCard
+                          place={3}
+                          student={top3MenList[2]}
+                          isRevealed={revealStep >= 1}
+                          isGuiannella={top3MenList[2] ? isGuiannella(top3MenList[2].name) : false}
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {revealStep === 3 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, y: 15 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: 'spring', damping: 12, delay: 0.5 }}
+                      className="mt-6 w-full max-w-xl text-center py-4 px-6 bg-gradient-to-r from-yellow-500/10 via-[#ff007a]/15 to-yellow-500/10 border border-yellow-500/30 rounded-2xl relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 left-0 w-full h-[1px] bg-yellow-500/50" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-yellow-300 block">👑 REINOS DE MASHMATCH CORONADOS 👑</p>
+                      <p className="text-xs text-white/80 mt-1">¡Felicitaciones a los ganadores de la temporada v4.0 por liderar el ELO final!</p>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* FOOTER CONTROL BAR */}
+            <div className="py-4 border-t border-white/5 relative z-10 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-4 w-full max-w-5xl mx-auto">
+              {revealStep === 0 ? (
+                <div className="text-[10px] font-mono text-white/30 text-center sm:text-left">
+                  MashMatch V4.0 • Resultados Deportivos/Estudiantiles Oficiales.
+                </div>
+              ) : (
+                <>
+                  {/* Step Progress indicators */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[9px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-lg ${revealStep === 1 ? 'bg-[#ff007a]/20 text-[#ff007a] border border-[#ff007a]/30' : 'text-white/40'}`}>
+                      3er Puesto 🥉
+                    </span>
+                    <span className="text-white/20">→</span>
+                    <span className={`text-[9px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-lg ${revealStep === 2 ? 'bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe]/30' : 'text-white/40'}`}>
+                      2do Puesto 🥈
+                    </span>
+                    <span className="text-white/20">→</span>
+                    <span className={`text-[9px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-lg ${revealStep === 3 ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 animate-pulse' : 'text-white/40'}`}>
+                      Campeón 🥇👑
+                    </span>
+                  </div>
+
+                  {/* Center: Autoplay Checkbox */}
+                  {revealStep < 3 && (
+                    <label className="flex items-center gap-2 text-xs font-mono text-white/50 cursor-pointer hover:text-white/80 transition select-none">
+                      <input
+                        type="checkbox"
+                        checked={autoAdvance}
+                        onChange={(e) => setAutoAdvance(e.target.checked)}
+                        className="rounded border-white/20 bg-white/5 text-[#ff007a] focus:ring-0 focus:ring-offset-0 transition cursor-pointer"
+                      />
+                      <span>Auto-avanzar (4s)</span>
+                      {autoAdvance && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />}
+                    </label>
+                  )}
+
+                  {/* Navigation buttons */}
+                  <div className="flex items-center gap-3">
+                    {revealStep > 1 && revealStep < 3 && (
+                      <button
+                        onClick={handlePrevRevealStep}
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-white text-xs font-bold uppercase tracking-wider transition border border-white/5 cursor-pointer"
+                      >
+                        Atrás
+                      </button>
+                    )}
+
+                    {revealStep < 3 ? (
+                      <button
+                        onClick={handleNextRevealStep}
+                        className="px-5 py-2 bg-gradient-to-r from-[#ff007a] to-[#bc13fe] hover:opacity-90 active:scale-95 text-white text-xs font-black uppercase tracking-widest rounded-xl transition cursor-pointer"
+                      >
+                        {revealStep === 1 ? "Revelar 2do 🥈" : "Revelar Campeón 👑"}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setRevealStep(1);
+                            playRevealSound(1, isMuted);
+                          }}
+                          className="px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl text-white text-xs font-bold uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Repetir Show
+                        </button>
+                        <button
+                          onClick={() => setIsRevealModalOpen(false)}
+                          className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-xl transition cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                        >
+                          Listo, Salir 🚪
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+interface RevealSlotCardProps {
+  place: number;
+  student: Student | null;
+  isRevealed: boolean;
+  isGuiannella: boolean;
+}
+
+const RevealSlotCard = ({ place, student, isRevealed, isGuiannella }: RevealSlotCardProps) => {
+  const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉';
+  
+  if (!isRevealed) {
+    return (
+      <div className="bg-white/[0.01] border border-white/5 border-dashed rounded-2xl p-4 sm:p-5 flex items-center justify-between min-h-[82px] relative overflow-hidden group">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full border border-white/5 bg-white/[0.01] flex items-center justify-center text-lg text-white/30 font-mono select-none">
+            ?
+          </div>
+          <div>
+            <div className="h-4 w-28 bg-white/5 rounded animate-pulse" />
+            <div className="h-3 w-16 bg-white/5 rounded animate-pulse mt-2" />
+          </div>
+        </div>
+        <div className="flex items-center gap-1 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+          <Lock className="w-3.5 h-3.5 text-white/20" />
+          <span className="text-[8px] font-mono text-white/20 tracking-wider uppercase">Bloqueado</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!student) {
+    return (
+      <div className="bg-white/[0.01] border border-white/5 border-dashed rounded-2xl p-4 sm:p-5 flex items-center justify-center min-h-[82px] text-xs font-mono text-white/20 italic">
+        Posición Vacante
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 15 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', damping: 11 }}
+      className={`border rounded-2xl p-4 sm:p-5 flex items-center justify-between relative overflow-hidden transition-all duration-300 ${
+        place === 1
+          ? isGuiannella
+            ? 'border-violet-500 bg-violet-950/20 shadow-[0_0_25px_rgba(188,19,254,0.4)]'
+            : 'border-yellow-500/80 bg-yellow-950/15 shadow-[0_0_25px_rgba(234,179,8,0.3)]'
+          : 'bg-white/5 border-white/10'
+      }`}
+    >
+      {/* Absolute Placement Index badge watermark */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-5xl font-black italic select-none opacity-5 leading-none">
+        0{place}
+      </div>
+
+      <div className="flex items-center gap-3 relative z-10">
+        <div className={`w-12 h-12 rounded-full border-2 bg-black flex items-center justify-center text-xl shrink-0 relative ${
+          place === 1
+            ? isGuiannella
+              ? 'border-violet-400 shadow-[0_0_12px_rgba(188,19,254,0.6)] animate-pulse'
+              : 'border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.5)] animate-pulse'
+            : 'border-white/20'
+        }`}>
+          {medal}
+        </div>
+        <div className="overflow-hidden">
+          <h4 className={`text-xs sm:text-sm font-black truncate max-w-[140px] leading-snug ${
+            place === 1
+              ? isGuiannella
+                ? 'text-violet-300'
+                : 'text-yellow-300'
+              : 'text-white'
+          }`}>
+            {student.name}
+          </h4>
+          <p className="text-[9px] font-mono text-white/40 mt-1 flex items-center gap-1">
+            <span>🏆 {student.elo} Puntos</span>
+            <span>•</span>
+            <span>{student.wins} victorias</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end relative z-10 select-none">
+        {place === 1 && (
+          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+            isGuiannella 
+              ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' 
+              : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+          } animate-bounce mb-1`}>
+            CAMPEÓN 👑
+          </span>
+        )}
+        <span className="text-[10px] font-mono text-emerald-405 font-bold bg-emerald-950/20 px-2.5 py-1 rounded-xl border border-emerald-500/10">
+          Rank #0{place}
+        </span>
+      </div>
+    </motion.div>
+  );
+};
