@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: './', // <-- AÑADE ESTA LÍNEA AQUÍ
+    base: '/', // <-- CÁMBIALO de './' a '/' para que busque siempre desde la raíz real
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
