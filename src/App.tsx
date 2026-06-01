@@ -1707,45 +1707,20 @@ service cloud.firestore {
                     <p className="text-xs font-mono text-white/50 uppercase tracking-widest">Verificando permisos admin en la base de datos...</p>
                   </div>
                 ) : !isUserAdmin ? (
-                  /* STEP 2: USUARIO CONECTADO PERO NO ES ADMIN (REGISTRARLO) */
+                  /* STEP 2: USUARIO CONECTADO PERO NO ES ADMIN */
                   <div className="flex flex-col items-center justify-center py-4 text-center">
-                    <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-500 mb-4 animate-pulse">
+                    <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 mb-4 animate-pulse">
                       <Lock className="w-5 h-5" />
                     </div>
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wider font-display">Solicitud de Privilegios</h4>
-                    <p className="text-[11px] text-yellow-400/85 max-w-xs bg-yellow-950/25 border border-yellow-800/45 rounded-xl p-3 mt-4 leading-normal">
-                      ⚠️ Registra ahora mismo este usuario en Firestore para activarte como administrador y controlar el temporizador de cuenta atrás.
+                    <h4 className="text-sm font-bold text-white uppercase tracking-wider font-display">Acceso Denegado</h4>
+                    <p className="text-[11px] text-red-400/85 max-w-xs bg-red-950/25 border border-red-800/45 rounded-xl p-3 mt-4 leading-normal">
+                      🔴 Ya no se pueden registrar nuevos administradores. El acceso de administración está limitado a los administradores ya registrados.
                     </p>
 
                     <button
                       type="button"
-                      disabled={registering}
-                      onClick={async () => {
-                        setRegistering(true);
-                        setAdminError(null);
-                        try {
-                          await setDoc(doc(db, 'CTA7.Estudiantes', 'configuracion', 'user-admin', user.uid), {
-                            email: user.email || 'desconocido',
-                            displayName: user.displayName || user.email?.split('@')[0] || 'Administrador',
-                            registeredAt: formatSpTimestamp(new Date())
-                          });
-                          setAdminSuccess("¡Te has registrado como administrador con éxito!");
-                        } catch (err) {
-                          console.error("Registration Error:", err);
-                          setAdminError(err instanceof Error ? `Error al registrar: ${err.message}` : "Error desconocido al registrar.");
-                        } finally {
-                          setRegistering(false);
-                        }
-                      }}
-                      className="mt-6 flex items-center justify-center gap-2 w-full py-3 px-5 bg-gradient-to-r from-[#ff007a] to-[#bc13fe] hover:brightness-110 text-white rounded-2xl text-xs font-bold uppercase tracking-widest cursor-pointer disabled:opacity-50"
-                    >
-                      {registering ? 'Registrando...' : 'Registrarme como Administrador'}
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => signOut(auth)}
-                      className="mt-3 text-[10px] font-bold uppercase tracking-wider text-white/30 hover:text-white transition"
+                      className="mt-6 w-full py-3 px-5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest cursor-pointer text-white/70 hover:text-white transition"
                     >
                       Volver / Cerrar Sesión
                     </button>
