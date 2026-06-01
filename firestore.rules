@@ -10,5 +10,17 @@ service cloud.firestore {
     match /CTA7.Estudiantes/{document=**} {
       allow read, write: if true;
     }
+
+    // Cualquier persona puede leer el listado de admins, pero solo el propio usuario autenticado puede registrar su ID
+    match /user-admin/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Cualquier persona puede leer las configuraciones globales, pero solo los usuarios en la colección user-admin pueden escribir
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/user-admin/$(request.auth.uid));
+    }
   }
 }

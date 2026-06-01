@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // Configuración de Firebase proporcionada por el usuario
 const firebaseConfig = {
@@ -15,6 +16,7 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 
 // Enumeraciones y funciones auxiliares para el manejo robusto de errores de Firestore
 export enum OperationType {

@@ -36,6 +36,46 @@
         }
       },
       "required": ["nombre", "elo", "perfilPhotoUrl", "votos_ganados", "votos_perdidos", "genre", "actualizadoEn"]
+    },
+    "UserAdmin": {
+      "title": "UserAdmin",
+      "description": "Registro de UID de usuario con permisos de administrador.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Correo del administrador"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nombre visible del administrador"
+        },
+        "registeredAt": {
+          "type": "string",
+          "description": "Fecha y hora de registro como administrador"
+        }
+      },
+      "required": ["email", "displayName", "registeredAt"]
+    },
+    "ConfigCountdown": {
+      "title": "ConfigCountdown",
+      "description": "Parámetros de configuración del temporizador de fin de juego.",
+      "type": "object",
+      "properties": {
+        "isActive": {
+          "type": "boolean",
+          "description": "Indica si la cuenta atrás está activa y detiene votos al terminar"
+        },
+        "targetDate": {
+          "type": "string",
+          "description": "Fecha esperada de finalización en formato ISO o string de fecha"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID de usuario de administrador que actualizó por última vez"
+        }
+      },
+      "required": ["isActive", "targetDate"]
     }
   },
   "firestore": {
@@ -46,6 +86,14 @@
     "CTA7.Estudiantes/generos/mujeres/{estudianteId}": {
       "schema": "Estudiante",
       "description": "Subcolección de estudiantes mujeres."
+    },
+    "user-admin/{userId}": {
+      "schema": "UserAdmin",
+      "description": "Lista de administradores autorizados con su ID."
+    },
+    "config/{configId}": {
+      "schema": "ConfigCountdown",
+      "description": "Configuraciones globales como el temporizador de cuenta atrás."
     }
   }
 }
