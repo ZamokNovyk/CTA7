@@ -863,12 +863,14 @@ service cloud.firestore {
           </div>
 
           <div className="flex-1 flex flex-row gap-2.5 sm:gap-6 items-stretch relative min-h-[280px] xs:min-h-[320px] sm:min-h-[380px]">
-            {/* Immersive Beautiful VS Crest centered */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-              <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-[#050505] border-2 border-[#ff007a] flex items-center justify-center shadow-[0_0_25px_rgba(255,0,122,0.65)]">
-                <span className="text-xs sm:text-lg font-black italic text-white tracking-widest">VS</span>
+            {/* Immersive Beautiful VS Crest centered - only shown when there's an active matchup and voting is not ended */}
+            {!(countdownConfig?.isActive && timeRemaining.total <= 0) && currentMatchup && currentMatchup.length === 2 && (
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-[#050505] border-2 border-[#ff007a] flex items-center justify-center shadow-[0_0_25px_rgba(255,0,122,0.65)]">
+                  <span className="text-xs sm:text-lg font-black italic text-white tracking-widest">VS</span>
+                </div>
               </div>
-            </div>
+            )}
 
             <AnimatePresence mode="wait">
               {countdownConfig?.isActive && timeRemaining.total <= 0 ? (
@@ -887,7 +889,7 @@ service cloud.firestore {
                     Votación Finalizada
                   </h3>
                   <p className="text-xs sm:text-sm font-semibold text-white/60 max-w-sm mt-3 leading-relaxed">
-                    La cuenta regresiva configurada por el administrador de MashMatch ha concluido el día sábado a las 12:00 AM (Hora Perú). Nuevos votos de ELO están cerrados.
+                    La cuenta regresiva configurada por el administrador de MashMatch ha concluido. Nuevos votos de ELO están cerrados.
                   </p>
                   <div className="mt-6 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
                     <span className="text-[9px] font-mono uppercase tracking-widest text-white/40 block">Fecha Límite Alcanzada</span>
@@ -1216,9 +1218,7 @@ service cloud.firestore {
                   Cuenta Regresiva de Votación
                   <span className={`h-2 w-2 rounded-full ${timeRemaining.total <= 0 ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
                 </span>
-                <p className="text-[9px] font-mono text-white/40 tracking-wider uppercase mt-0.5">
-                  Termina: Sábado Medianoche (Hora Perú) • UTC-5
-                </p>
+
               </div>
             </div>
 
@@ -1476,9 +1476,6 @@ service cloud.firestore {
                       <Lock className="w-5 h-5" />
                     </div>
                     <h4 className="text-sm font-bold text-white uppercase tracking-wider font-display">Solicitud de Privilegios</h4>
-                    <p className="text-xs text-white/60 max-w-sm mt-2 leading-relaxed">
-                      Estás conectado como <strong className="text-white font-semibold">{user.email}</strong>, pero tu ID <span className="text-[#ff007a] font-mono break-all">{user.uid}</span> no está registrado todavía en la subcolección de configuración de <span className="text-[#bc13fe] font-mono">CTA7.Estudiantes</span>.
-                    </p>
                     <p className="text-[11px] text-yellow-400/85 max-w-xs bg-yellow-950/25 border border-yellow-800/45 rounded-xl p-3 mt-4 leading-normal">
                       ⚠️ Registra ahora mismo este usuario en Firestore para activarte como administrador y controlar el temporizador de cuenta atrás.
                     </p>
