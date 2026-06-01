@@ -29,7 +29,9 @@ import {
   selectMatchup,
   calculateElo,
   playArcadeVoteSound,
-  getAvatarUrl
+  getAvatarUrl,
+  INITIAL_MEN,
+  INITIAL_WOMEN
 } from './utils';
 import {
   collection,
@@ -115,38 +117,49 @@ export default function App() {
       if (!isMounted.current) return;
       if (hombresLoaded && mujeresLoaded) {
         const combined = [...hombresData, ...mujeresData];
-        if (combined.length === 0) {
-          console.log("No students found in Firestore. Seeding database with defaults...");
+        
+        // Ensure ALL initial students from code are present in Firestore.
+        // This is robust: preserved any existing ELO/votos, and adds missing students dynamically.
+        const existingIds = new Set(combined.map((s) => s.id));
+        const missingWomen = INITIAL_WOMEN.filter((name) => !existingIds.has(getStudentDocumentId(name)));
+        const missingMen = INITIAL_MEN.filter((name) => !existingIds.has(getStudentDocumentId(name)));
+
+        if (missingWomen.length > 0 || missingMen.length > 0) {
+          console.log(`Auto-seeding missing students. Women: ${missingWomen.length}, Men: ${missingMen.length}`);
           try {
-            const initial = getInitialStudents();
-            // Seed initial students to their respective subcolección
-            await Promise.all(
-              initial.map(async (s) => {
-                const docId = getStudentDocumentId(s.name);
-                const docRef = doc(db, 'CTA7.Estudiantes', 'generos', s.genre === 'men' ? 'hombres' : 'mujeres', docId);
+            await Promise.all([
+              ...missingWomen.map(async (name) => {
+                const docId = getStudentDocumentId(name);
+                const docRef = doc(db, 'CTA7.Estudiantes', 'generos', 'mujeres', docId);
                 await setDoc(docRef, {
-                  nombre: s.name,
-                  elo: s.elo,
-                  perfilPhotoUrl: getAvatarUrl(s.name, s.genre),
+                  nombre: name,
+                  elo: 1200,
+                  perfilPhotoUrl: getAvatarUrl(name, 'women'),
                   votos_ganados: 0,
                   votos_perdidos: 0,
-                  genre: s.genre,
+                  genre: 'women',
+                  actualizadoEn: formatSpTimestamp(new Date())
+                });
+              }),
+              ...missingMen.map(async (name) => {
+                const docId = getStudentDocumentId(name);
+                const docRef = doc(db, 'CTA7.Estudiantes', 'generos', 'hombres', docId);
+                await setDoc(docRef, {
+                  nombre: name,
+                  elo: 1200,
+                  perfilPhotoUrl: getAvatarUrl(name, 'men'),
+                  votos_ganados: 0,
+                  votos_perdidos: 0,
+                  genre: 'men',
                   actualizadoEn: formatSpTimestamp(new Date())
                 });
               })
-            );
-            const mappedInitial = initial.map((s) => ({
-              ...s,
-              id: getStudentDocumentId(s.name),
-            }));
-            if (isMounted.current) {
-              setStudents(mappedInitial);
-              setLoading(false);
-            }
+            ]);
+            // The snapshot listener will fire again with the complete data set.
           } catch (err) {
-            console.error("Error seeding initial students to Firestore:", err);
+            console.error("Error auto-seeding missing default students:", err);
             if (isMounted.current) {
-              setConnectionError(err instanceof Error ? err.message : String(err));
+              setStudents(combined);
               setLoading(false);
             }
           }
