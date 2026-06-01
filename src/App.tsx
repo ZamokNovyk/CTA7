@@ -1045,7 +1045,7 @@ service cloud.firestore {
           <div className="flex flex-col items-center justify-center mb-1 gap-2.5">
             <h2 className="text-xs font-mono tracking-widest text-[#ff007a] uppercase italic flex items-center justify-center gap-2 text-center">
               <span className="inline-block w-2 h-2 rounded-full bg-[#ff007a] animate-pulse" />
-              {activeTab === 'women' ? '¿Quién es la más linda?' : '¿Quién es el más guapo?'}
+              {activeTab === 'women' ? '¿Quién es la más bonita?' : '¿Quién es el más guapo?'}
             </h2>
             
             {/* Dedicated futuristic voting progress bar component */}
