@@ -536,6 +536,9 @@ export default function App() {
     return studentA && studentB && studentA.genre === activeTab && studentB.genre === activeTab;
   }).length;
   const remainingMatchups = Math.max(0, totalPossibleMatchups - playedInThisCategory);
+  const completionPercent = totalPossibleMatchups > 0 
+    ? Math.min(100, Math.round((playedInThisCategory / totalPossibleMatchups) * 100)) 
+    : 0;
 
   if (connectionError) {
     return (
@@ -693,26 +696,34 @@ service cloud.firestore {
               {activeTab === 'women' ? '¿Quién es la más linda?' : '¿Quién es el más guapo?'}
             </h2>
             
-            {/* Visual indicator of maximum unrepeated matchups / potential loop limits */}
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-mono text-white/60 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
-              <div className="flex items-center gap-1">
-                <span>Versus Posibles:</span>
-                <span className="text-white font-bold">{totalPossibleMatchups}</span>
+            {/* Dedicated futuristic voting progress bar component */}
+            <div className="w-full max-w-md bg-white/5 border border-white/10 p-4 rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur-md">
+              <div className="flex justify-between items-center text-[10px] font-mono mb-2 text-white/60 tracking-wider uppercase">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#ff007a] animate-pulse" />
+                  Progreso de Votos
+                </span>
+                <span className="font-bold text-white font-mono">
+                  {playedInThisCategory} / {totalPossibleMatchups} ({completionPercent}%)
+                </span>
               </div>
-              <span className="text-white/20 hidden xs:inline">•</span>
-              <div className="flex items-center gap-1">
-                <span>Votados:</span>
-                <span className="text-[#ff007a] font-bold">{playedInThisCategory}</span>
+              <div className="h-2.5 w-full bg-black/40 border border-white/5 rounded-full overflow-hidden relative p-[1px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]">
+                {/* The glowing progress line */}
+                <div 
+                  className="h-full rounded-full bg-gradient-to-r from-[#ff007a] to-[#bc13fe] transition-all duration-500 ease-out shadow-[0_0_12px_rgba(255,0,122,0.6)]"
+                  style={{ width: `${completionPercent}%` }}
+                />
               </div>
-              <span className="text-white/20 hidden xs:inline">•</span>
-              {remainingMatchups > 0 ? (
-                <div className="flex items-center gap-1">
-                  <span>Por Votar:</span>
-                  <span className="text-emerald-400 font-bold">{remainingMatchups}</span>
-                </div>
-              ) : (
-                <span className="text-yellow-400 font-bold animate-pulse">¡Ciclo completado!</span>
-              )}
+              <div className="flex justify-between items-center mt-2 text-[9px] font-mono text-white/40 uppercase tracking-wider">
+                <span>Total Versus: {totalPossibleMatchups}</span>
+                {remainingMatchups > 0 ? (
+                  <span>Por Votar: <span className="text-emerald-400 font-bold font-sans">{remainingMatchups}</span></span>
+                ) : (
+                  <span className="text-yellow-400 font-bold animate-pulse flex items-center gap-1">
+                    🎉 ¡Categoría Completa!
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
