@@ -271,8 +271,8 @@ export default function App() {
       setUser(currentUser);
       if (currentUser) {
         setCheckingAdmin(true);
-        // Suscripción en tiempo real para verificar el estado de administrador en user-admin
-        const adminDocRef = doc(db, 'user-admin', currentUser.uid);
+        // Suscripción en tiempo real para verificar el estado de administrador en subcolección de CTA7.Estudiantes
+        const adminDocRef = doc(db, 'CTA7.Estudiantes', 'configuracion', 'user-admin', currentUser.uid);
         const unsubscribeAdmin = onSnapshot(adminDocRef, (snap) => {
           setIsUserAdmin(snap.exists());
           setCheckingAdmin(false);
@@ -290,8 +290,8 @@ export default function App() {
       }
     });
 
-    // Suscripción en tiempo real para configuraciones globales en Firestore
-    const countdownDocRef = doc(db, 'config', 'countdown');
+    // Suscripción en tiempo real para configuraciones globales en Firestore (subcolección de CTA7.Estudiantes)
+    const countdownDocRef = doc(db, 'CTA7.Estudiantes', 'configuracion', 'config', 'countdown');
     const unsubscribeCountdown = onSnapshot(countdownDocRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
@@ -1477,7 +1477,7 @@ service cloud.firestore {
                     </div>
                     <h4 className="text-sm font-bold text-white uppercase tracking-wider font-display">Solicitud de Privilegios</h4>
                     <p className="text-xs text-white/60 max-w-sm mt-2 leading-relaxed">
-                      Estás conectado como <strong className="text-white font-semibold">{user.email}</strong>, pero tu ID <span className="text-[#ff007a] font-mono break-all">{user.uid}</span> no está registrado todavía en la colección <span className="text-[#bc13fe] font-mono">user-admin</span>.
+                      Estás conectado como <strong className="text-white font-semibold">{user.email}</strong>, pero tu ID <span className="text-[#ff007a] font-mono break-all">{user.uid}</span> no está registrado todavía en la subcolección de configuración de <span className="text-[#bc13fe] font-mono">CTA7.Estudiantes</span>.
                     </p>
                     <p className="text-[11px] text-yellow-400/85 max-w-xs bg-yellow-950/25 border border-yellow-800/45 rounded-xl p-3 mt-4 leading-normal">
                       ⚠️ Registra ahora mismo este usuario en Firestore para activarte como administrador y controlar el temporizador de cuenta atrás.
@@ -1490,7 +1490,7 @@ service cloud.firestore {
                         setRegistering(true);
                         setAdminError(null);
                         try {
-                          await setDoc(doc(db, 'user-admin', user.uid), {
+                          await setDoc(doc(db, 'CTA7.Estudiantes', 'configuracion', 'user-admin', user.uid), {
                             email: user.email || 'desconocido',
                             displayName: user.displayName || user.email?.split('@')[0] || 'Administrador',
                             registeredAt: formatSpTimestamp(new Date())
@@ -1498,7 +1498,7 @@ service cloud.firestore {
                           setAdminSuccess("¡Te has registrado como administrador con éxito!");
                         } catch (err) {
                           console.error("Registration Error:", err);
-                          setAdminError("Error al registrar: asegúrate de estar conectado.");
+                          setAdminError(err instanceof Error ? `Error al registrar: ${err.message}` : "Error desconocido al registrar.");
                         } finally {
                           setRegistering(false);
                         }
@@ -1559,7 +1559,7 @@ service cloud.firestore {
                               setAdminSuccess(null);
                               try {
                                 const targetDateVal = countdownConfig?.targetDate || new Date(Date.now() + 24*3600*1000).toISOString();
-                                await setDoc(doc(db, 'config', 'countdown'), {
+                                await setDoc(doc(db, 'CTA7.Estudiantes', 'configuracion', 'config', 'countdown'), {
                                   isActive: activeVal,
                                   targetDate: targetDateVal,
                                   updatedBy: user.uid
@@ -1567,7 +1567,7 @@ service cloud.firestore {
                                 setAdminSuccess(activeVal ? "Cuenta atrás ACTIVADA." : "Cuenta atrás DESACTIVADA.");
                               } catch (err) {
                                 console.error("Update Countdown Error:", err);
-                                setAdminError("No se pudo actualizar el estado de cuenta atrás.");
+                                setAdminError(err instanceof Error ? `Error al activar: ${err.message}` : "No se pudo actualizar el estado de cuenta atrás.");
                               }
                             }}
                             className="sr-only peer"
@@ -1594,14 +1594,14 @@ service cloud.firestore {
                               try {
                                 // Convert input local format YYYY-MM-DDTHH:mm to YYYY-MM-DDTHH:mm:00-05:00
                                 const formattedStr = `${datetimeVal}:00-05:00`;
-                                await setDoc(doc(db, 'config', 'countdown'), {
+                                await setDoc(doc(db, 'CTA7.Estudiantes', 'configuracion', 'config', 'countdown'), {
                                   targetDate: formattedStr,
                                   updatedBy: user.uid
                                 }, { merge: true });
                                 setAdminSuccess("Hora de finalización actualizada.");
                               } catch (err) {
                                 console.error("Date Input Error:", err);
-                                setAdminError("Error al guardar la hora del temporizador.");
+                                setAdminError(err instanceof Error ? `Error al guardar: ${err.message}` : "Error al guardar la hora del temporizador.");
                               }
                             }}
                             className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white opacity-90 outline-none focus:border-[#ff007a] flex-1 font-mono"
@@ -1630,14 +1630,14 @@ service cloud.firestore {
                                 const dateNum = String(sabado.getDate()).padStart(2, '0');
                                 const correctVal = `${year}-${month}-${dateNum}T00:00:00-05:00`;
 
-                                await setDoc(doc(db, 'config', 'countdown'), {
+                                await setDoc(doc(db, 'CTA7.Estudiantes', 'configuracion', 'config', 'countdown'), {
                                   targetDate: correctVal,
                                   updatedBy: user.uid
                                 }, { merge: true });
                                 setAdminSuccess("Preestablecido para el Sábado a Medianoche (Perú).");
                               } catch (err) {
                                 console.error("Shortcut date error:", err);
-                                setAdminError("Error al preestablecer la fecha.");
+                                setAdminError(err instanceof Error ? `Error al preestablecer: ${err.message}` : "Error al preestablecer la fecha.");
                               }
                             }}
                             className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 text-[10px] font-bold uppercase tracking-wider text-white transition-all cursor-pointer flex items-center justify-center gap-1.5"
