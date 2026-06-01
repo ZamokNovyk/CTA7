@@ -1,6 +1,6 @@
 {
-  "name": "MashMatch",
-  "description": "Un clon de Facemash moderno y respetuoso para entornos educativos de adultos, con lógica de puntuación ELO, categorías por género, privacidad con podio de honor, efectos de audio y atajos de teclado.",
+  "name": "CTA Ciclo VII - Ranking de belleza",
+  "description": "Ranking interactivo con sistema de puntuación ELO, categorías de hombres y mujeres para elegir al más simpático.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
