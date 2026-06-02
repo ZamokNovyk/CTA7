@@ -347,13 +347,13 @@ export default function App() {
 
   // Ticker de cuenta regresiva
   useEffect(() => {
-    if (!countdownConfig || !countdownConfig.isActive || !countdownConfig.targetDate) {
+    if (!countdownConfig || !countdownConfig?.isActive || !countdownConfig?.targetDate) {
       setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0, total: 100000 });
       return;
     }
 
     const updateTimer = () => {
-      const targetTime = new Date(countdownConfig.targetDate).getTime();
+      const targetTime = countdownConfig?.targetDate ? new Date(countdownConfig.targetDate).getTime() : 0;
       const currentTime = new Date().getTime();
       const difference = targetTime - currentTime;
 
@@ -1136,7 +1136,7 @@ service cloud.firestore {
                   <div className="mt-6 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
                     <span className="text-[9px] font-mono uppercase tracking-widest text-white/40 block">Fecha Límite Alcanzada</span>
                     <span className="text-xs font-mono font-bold text-red-400 mt-1 block">
-                      {countdownConfig.targetDate ? new Date(countdownConfig.targetDate).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : 'Sábado (Media Noche)'} (Perú)
+                      {countdownConfig?.targetDate ? new Date(countdownConfig.targetDate).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : 'Sábado (Media Noche)'} (Perú)
                     </span>
                   </div>
                 </motion.div>
