@@ -67,8 +67,26 @@ import {
 
 export default function App() {
   // --- STATE ---
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  // Load initially from localStorage for sub-millisecond, zero-network-lag loads to eliminate duplicate read actions
+  const [students, setStudents] = useState<Student[]>(() => {
+    try {
+      const cached = localStorage.getItem('mashMatch_cached_students');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      const cached = localStorage.getItem('mashMatch_cached_students');
+      const loaded = cached ? JSON.parse(cached) : [];
+      return loaded.length === 0;
+    } catch (e) {
+      return true;
+    }
+  });
+
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'women' | 'men'>('women');
   const [currentMatchup, setCurrentMatchup] = useState<[Student, Student] | null>(null);
@@ -157,6 +175,13 @@ export default function App() {
       if (!isMounted.current) return;
       if (hombresLoaded && mujeresLoaded) {
         const combined = [...hombresData, ...mujeresData];
+        
+        // Cache in localStorage to ensure instantaneous rendering and avoid duplicate reads on reload
+        try {
+          localStorage.setItem('mashMatch_cached_students', JSON.stringify(combined));
+        } catch (e) {
+          console.error("Error caching students in localStorage:", e);
+        }
         
         // Ensure ALL initial students from code are present in Firestore.
         // This is robust: preserved any existing ELO/votos, and adds missing students dynamically.
