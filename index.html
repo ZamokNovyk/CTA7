@@ -9,6 +9,24 @@
     <meta property="og:description" content="¿Quién es más lindo/a? Elige tu favorito y vota en este ranking interactivo con puntuación ELO." />
     <meta property="og:type" content="website" />
     <meta name="description" content="¿Quién es más lindo/a? Elige tu favorito y vota en este ranking interactivo con puntuación ELO." />
+    <!-- Auto-recovery script from caching/compilation mismatches -->
+    <script>
+      window.addEventListener('error', function(e) {
+        var target = e.target;
+        if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+          var url = target.src || target.href;
+          if (url && (url.indexOf('/assets/') !== -1 || url.indexOf('/src/') !== -1)) {
+            var lastReload = localStorage.getItem('mm_last_reload_err');
+            var now = Date.now();
+            if (!lastReload || (now - parseInt(lastReload, 10)) > 15000) {
+              localStorage.setItem('mm_last_reload_err', now.toString());
+              console.warn('Fallo de carga del recurso (' + url + '). Forzando actualización de la caché del navegador...', e);
+              window.location.reload();
+            }
+          }
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>

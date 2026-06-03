@@ -994,9 +994,7 @@ service cloud.firestore {
               MashMatch 
               <span className="text-[#ff007a] text-[10px] align-top font-bold uppercase tracking-widest bg-[#ff007a]/15 px-1.5 py-0.5 rounded border border-[#ff007a]/20">v4.0</span>
             </h1>
-            <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest mt-1 hidden sm:block">
-              Aula de Adultos • ELO Matcher
-            </p>
+            
           </div>
         </div>
 
